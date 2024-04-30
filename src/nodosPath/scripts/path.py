@@ -38,70 +38,73 @@ if __name__=="__main__":
         w_max = np.pi / 2  # maximum angular velocity (rad/s)
         
         # Read positions from file
-        with open("paths/path1Try1.txt", "r") as file:
-            positions = np.loadtxt(file)
+        numPath = 1
+        while numPath < 8:
+            with open("paths/path1Try"+ str(numPath)+ ".txt", "r") as file:
+                positions = np.loadtxt(file)
 
-        num_positions = positions.shape[0]
+            num_positions = positions.shape[0]
 
-        pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+            pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
 
-        sub_wl = rospy.Subscriber('/wl', Float32, wl_callback)
-        sub_wr = rospy.Subscriber('/wr', Float32, wr_callback)
-        
-        x = 0.0  # x-position (m)
-        y = 0.0  # y-position (m)
-        theta = 0  # orientation (rad)
-
-        kpr = 1.4
-        kpt = 4.5
-
-        wr = 0.0
-        wl = 0.0
-
-        # Simulate robot motion
-        i = 1
-        while i < num_positions:
-
-            xd = positions[i,0]
-            yd = positions[i,1]
-
-            thetad = math.atan2((yd-y), (xd-x))
-            error = math.sqrt((xd-x)**2 + (yd-y)**2)
-
-            thetae = (theta - thetad)
-            if thetae > math.pi:
-                thetae = thetae - 2*math.pi
-            elif thetae < -math.pi:
-                thetae = thetae + 2*math.pi
-
-            wref = -kpr * thetae
-            vref = vmax*math.tanh(error*kpt/vmax)
-
-            vr = vref + (wheelbase*wref)/2
-            vl = vref - (wheelbase*wref)/2
+            sub_wl = rospy.Subscriber('/wl', Float32, wl_callback)
+            sub_wr = rospy.Subscriber('/wr', Float32, wr_callback)
             
-            vref = (vr + vl)/2
+            x = 0.0  # x-position (m)
+            y = 0.0  # y-position (m)
+            theta = 0  # orientation (rad)
 
-            v_real = wheel_radius* (wr+wl)/2
-            w_real = wheel_radius* (wr-wl)/wheelbase
+            kpr = 1.4
+            kpt = 4.5
 
-            vx = v_real * math.cos(theta)
-            vy = v_real * math.sin(theta)
+            wr = 0.0
+            wl = 0.0
 
-            x = x + vx*dt
-            y = y + vy*dt
-            theta = theta + w_real * dt
-            
-            # Compute wheel velocities from desired linear and angular velocities
-            twist.linear.x = vref
-            twist.angular.z = wref
-            pub.publish(twist)
+            # Simulate robot motion
+            i = 1
+            while i < num_positions:
 
-            # Check if the robot has reached the desired position
-            if abs(error) < 0.1:
-                i += 1
-            t = t + dt
-            rate.sleep()
+                xd = positions[i,0]
+                yd = positions[i,1]
+
+                thetad = math.atan2((yd-y), (xd-x))
+                error = math.sqrt((xd-x)**2 + (yd-y)**2)
+
+                thetae = (theta - thetad)
+                if thetae > math.pi:
+                    thetae = thetae - 2*math.pi
+                elif thetae < -math.pi:
+                    thetae = thetae + 2*math.pi
+
+                wref = -kpr * thetae
+                vref = vmax*math.tanh(error*kpt/vmax)
+
+                vr = vref + (wheelbase*wref)/2
+                vl = vref - (wheelbase*wref)/2
+                
+                vref = (vr + vl)/2
+
+                v_real = wheel_radius* (wr+wl)/2
+                w_real = wheel_radius* (wr-wl)/wheelbase
+
+                vx = v_real * math.cos(theta)
+                vy = v_real * math.sin(theta)
+
+                x = x + vx*dt
+                y = y + vy*dt
+                theta = theta + w_real * dt
+                
+                # Compute wheel velocities from desired linear and angular velocities
+                twist.linear.x = vref
+                twist.angular.z = wref
+                pub.publish(twist)
+
+                # Check if the robot has reached the desired position
+                if abs(error) < 0.1:
+                    i += 1
+                t = t + dt
+                rate.sleep()
+            numPath += 1
 
     except rospy.ROSInterruptException:
         pass

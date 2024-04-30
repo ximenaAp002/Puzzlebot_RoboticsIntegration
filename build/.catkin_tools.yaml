@@ -1,0 +1,6 @@
+devel_space: /home/karma/repoROS/devel
+install: false
+install_space: /home/karma/repoROS/install
+profile: default
+source_space: /home/karma/repoROS/src
+workspace: /home/karma/repoROS

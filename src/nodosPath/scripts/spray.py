@@ -2,6 +2,12 @@ import os
 import pygame
 import time 
 from pygame.locals import *
+import rospy
+import random
+
+def emoji_callback(emoji):
+    global emojiGato
+    emojiGato = emoji.data
 
 def mostrar_secuencia_gif(directorio):
     pygame.init()
@@ -10,7 +16,7 @@ def mostrar_secuencia_gif(directorio):
     pantalla.fill(background_color)
     pygame.display.update()
 
-    pygame.display.set_caption("Secuencia de imágenes")
+    pygame.display.set_caption("Secuencia")
 
     archivos = os.listdir(directorio)
     archivos_imagen = [archivo for archivo in archivos if archivo.endswith(('.png', '.jpg', '.jpeg'))]
@@ -33,30 +39,31 @@ def mostrar_secuencia_gif(directorio):
 
     #pygame.quit()
 
-opcion = 1
+if __name__=="__main__":
+    try:
+        rospy.init_node('mushu_face')
+        nodeRate = 100
+        rate = rospy.Rate(nodeRate)
+        opcion = rospy.Subscriber("/mushuMode", emoji_callback)
+        if opcion == None:
+            opcion = random.randint(0,3)
+        
 
-while True:
-
-    if opcion == 1:
-        directorio_caras_pixel_art = 'mushu\idle'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 2
-    elif opcion == 2:
-        directorio_caras_pixel_art = 'mushu\TITE'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 3
-    elif opcion == 3:
-        directorio_caras_pixel_art = 'mushu\enojao'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 4 
-    elif opcion == 4:
-        directorio_caras_pixel_art = 'mushu\miaw'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 5
-    elif opcion == 5:
-        directorio_caras_pixel_art = 'mushu\happy'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 1
-    else:
-         print("Opción no válida. Por favor, elige una opción del menú.")
-
+        if opcion == 1:
+            directorio_caras_pixel_art = 'mushu\idle'
+            mostrar_secuencia_gif(directorio_caras_pixel_art)
+        elif opcion == 2:
+            directorio_caras_pixel_art = 'mushu\TITE'
+            mostrar_secuencia_gif(directorio_caras_pixel_art)
+        elif opcion == 3:
+            directorio_caras_pixel_art = 'mushu\enojao'
+            mostrar_secuencia_gif(directorio_caras_pixel_art)
+        elif opcion == 4:
+            directorio_caras_pixel_art = 'mushu\miaw'
+            mostrar_secuencia_gif(directorio_caras_pixel_art)
+        elif opcion == 5:
+            directorio_caras_pixel_art = 'mushu\happy'
+            mostrar_secuencia_gif(directorio_caras_pixel_art)
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass

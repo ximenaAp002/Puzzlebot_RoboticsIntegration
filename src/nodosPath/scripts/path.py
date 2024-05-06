@@ -17,6 +17,9 @@ def wr_callback(data):
     global wr
     wr = data.data
 
+def lidar_callback(data):
+    global lidar
+    lidar = data.data
 # Set up ROS node and publishers/subscribers
 
 if __name__=="__main__":
@@ -27,7 +30,7 @@ if __name__=="__main__":
         rate = rospy.Rate(nodeRate)
 
         twist = Twist()
-        vmax = .2
+        vmax = .05
 
         # Define robot parameters
         wheel_radius = 0.05  # radius of wheels (m)
@@ -38,34 +41,67 @@ if __name__=="__main__":
         w_max = np.pi / 2  # maximum angular velocity (rad/s)
         
         # Read positions from file
-        numPath = 1
-        while numPath < 8:
-            with open("paths/path1Try"+ str(numPath)+ ".txt", "r") as file:
-                positions = np.loadtxt(file)
+        numPath = rospy.get_param('/mesa/numMesa')
 
-            num_positions = positions.shape[0]
+        ruta_archivo = "/home/karma/gazebo/src/pathRestaurante/paths/path" + str(numPath) + "Try1.txt"
 
-            pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        datos = np.loadtxt(ruta_archivo, skiprows=1)
 
-            sub_wl = rospy.Subscriber('/wl', Float32, wl_callback)
-            sub_wr = rospy.Subscriber('/wr', Float32, wr_callback)
+        posiciones_x = .01 * datos[:, 0]
+        posiciones_y = .01 * datos[:, 1]
+
+        diferenciaX = posiciones_x[0]
+        diferenciaY = posiciones_y[0]
+
+        for i in range(len(posiciones_x)):
+            posiciones_x[i] -= diferenciaX
+            posiciones_y[i] -= diferenciaY
+
+        posiciones_x_rev = np.flip(posiciones_x)
+        posiciones_y_rev = np.flip(posiciones_y)
+
+        #print("Posiciones de x:", posiciones_x)
+        #print("Posiciones de y:", posiciones_y)
+
+        #print("Posiciones de x:", posiciones_x_rev)
+        #print("Posiciones de y:", posiciones_y_rev)
+
+        num_positions = len(posiciones_x)
+
+        #pos_x = positions[]
+        #print(positions[0])
+        #rospy.sleep(1000)
+        pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+
+        sub_wl = rospy.Subscriber('/wl', Float32, wl_callback)
+        sub_wr = rospy.Subscriber('/wr', Float32, wr_callback)
+
+        x = posiciones_x[0]  # x-position (m)
+        y = posiciones_y[0] # y-position (m)
+        theta = 0  # orientation (rad)
+
+        kpr = 2.4
+        kpt = 4.5
+
+        wr = 0.0
+        wl = 0.0
+
+        # Simulate robot motion
+        for k in range (2):
+            sub_lidar = rospy.Subscriber('/scan', Float32, lidar_callback)
+
             
-            x = 0.0  # x-position (m)
-            y = 0.0  # y-position (m)
-            theta = 0  # orientation (rad)
-
-            kpr = 1.4
-            kpt = 4.5
-
-            wr = 0.0
-            wl = 0.0
-
-            # Simulate robot motion
-            i = 1
+            i = 0
+            reverse = False
+            if k == 1:
+                reverse = True
             while i < num_positions:
-
-                xd = positions[i,0]
-                yd = positions[i,1]
+                if not reverse:
+                    xd = posiciones_x[i]
+                    yd = posiciones_y[i]
+                else:       
+                    xd = posiciones_x_rev[i]
+                    yd = posiciones_y_rev[i]                   
 
                 thetad = math.atan2((yd-y), (xd-x))
                 error = math.sqrt((xd-x)**2 + (yd-y)**2)
@@ -94,17 +130,34 @@ if __name__=="__main__":
                 y = y + vy*dt
                 theta = theta + w_real * dt
                 
+                #print('y actual = ', y, 'y deseada = ', yd)
+                print(numPath)
+                print('y deseada = ', yd)
+                print('x deseada = ', xd)
+                # print()
+                #print('x actual = ', x, 'x deseada = ', xd)
+                # print()
+                # print('error =', error)
+                # print()
+
                 # Compute wheel velocities from desired linear and angular velocities
                 twist.linear.x = vref
                 twist.angular.z = wref
                 pub.publish(twist)
 
                 # Check if the robot has reached the desired position
-                if abs(error) < 0.1:
+                if abs(error) < 0.01:
                     i += 1
                 t = t + dt
                 rate.sleep()
-            numPath += 1
 
+            print("Ruta terminada ",k)
+            twist.linear.x = 0
+            twist.angular.z = 0
+            pub.publish(twist)
+            rospy.sleep(10)
+        print("mesa ", numPath )
     except rospy.ROSInterruptException:
         pass
+
+

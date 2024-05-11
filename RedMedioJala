@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import rospy
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
+import cv2
+import numpy as np
+
+class YOLOv5DetectionNode:
+    def __init__(self):
+        rospy.init_node('yolov5_detection_node', anonymous=True)
+
+        # Suscripción al topic de la cámara
+        self.image_sub = rospy.Subscriber('/camera/image_raw', Image, self.image_callback)
+
+        # Publicación de las detecciones
+        self.detection_pub = rospy.Publisher('/object_detections', Image, queue_size=10)
+
+        # Inicialización de OpenCV
+        self.bridge = CvBridge()
+        self.net = self.build_model(is_cuda=True)  # Dependiendo del modelo, puedes activar o desactivar CUDA
+
+    def build_model(self, is_cuda):
+        net = cv2.dnn.readNetFromONNX("best.onnx")
+        if is_cuda:
+            rospy.loginfo("Attempty to use CUDA")
+            net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+            net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA_FP16)
+        else:
+            rospy.loginfo("Running on CPU")
+            net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
+            net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+        return net
+
+    def detect_objects(self, image):
+        blob = cv2.dnn.blobFromImage(image, 1/255.0, (640, 640), swapRB=True, crop=False)
+        self.net.setInput(blob)
+        preds = self.net.forward()
+        return preds
+
+    def image_callback(self, data):
+        # Convertir el mensaje de imagen a una imagen de OpenCV
+        cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+
+        # Detectar objetos
+        detections = self.detect_objects(cv_image)
+
+        # Publicar las detecciones (opcional)
+        detection_image = self.draw_detections(cv_image, detections)
+        detection_msg = self.bridge.cv2_to_imgmsg(detection_image, "bgr8")
+        self.detection_pub.publish(detection_msg)
+
+    def draw_detections(self, image, detections):
+        # Tu lógica de dibujo de detecciones aquí
+        # Devuelve la imagen con las detecciones dibujadas
+        return image
+
+if __name__ == '__main__':
+    try:
+        node = YOLOv5DetectionNode()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass

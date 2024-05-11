@@ -1,8 +1,34 @@
-import os
+#!/usr/bin/env python3
 import pygame
 import time 
 from pygame.locals import *
+import rospy
+import random
+import os
+from std_msgs.msg import Int16
 
+
+def emoji_callback(emoji):
+    global emojiGato
+    emojiGato = emoji.data
+
+    if emojiGato == 1:
+        directorio_caras_pixel_art = '/home/leo/mushu/src/nodospath/mushu/idle'
+        mostrar_secuencia_gif(directorio_caras_pixel_art)
+    elif emojiGato == 2:
+        directorio_caras_pixel_art = '/home/leo/mushu/src/nodospath/mushu/tite'
+        mostrar_secuencia_gif(directorio_caras_pixel_art)
+    elif emojiGato == 3:
+        directorio_caras_pixel_art = '/home/leo/mushu/src/nodospath/mushu/enojao'
+        mostrar_secuencia_gif(directorio_caras_pixel_art)
+    elif emojiGato == 4:
+        directorio_caras_pixel_art = '/home/leo/mushu/src/nodospath/mushu/miaw'
+        mostrar_secuencia_gif(directorio_caras_pixel_art)
+    elif emojiGato == 5:
+        directorio_caras_pixel_art = '/home/leo/mushu/src/nodospath/mushu/happy'
+        mostrar_secuencia_gif(directorio_caras_pixel_art)
+
+    
 def mostrar_secuencia_gif(directorio):
     pygame.init()
     pantalla = pygame.display.set_mode((800, 480))
@@ -18,7 +44,7 @@ def mostrar_secuencia_gif(directorio):
 
     index = 0
     corriendo = 0
-    while corriendo < 16:
+    while corriendo < 40:
         for event in pygame.event.get():
             if event.type == QUIT:
                 corriendo = False
@@ -31,32 +57,21 @@ def mostrar_secuencia_gif(directorio):
         pygame.time.delay(500)  # Retardo de 100 milisegundos (equivalente a 10 cuadros por segundo)
         corriendo +=1
 
-    #pygame.quit()
 
-opcion = 1
 
-while True:
 
-    if opcion == 1:
-        directorio_caras_pixel_art = 'mushu\idle'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 2
-    elif opcion == 2:
-        directorio_caras_pixel_art = 'mushu\TITE'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 3
-    elif opcion == 3:
-        directorio_caras_pixel_art = 'mushu\enojao'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 4 
-    elif opcion == 4:
-        directorio_caras_pixel_art = 'mushu\miaw'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 5
-    elif opcion == 5:
-        directorio_caras_pixel_art = 'mushu\happy'
-        mostrar_secuencia_gif(directorio_caras_pixel_art)
-        opcion = 1
-    else:
-         print("Opción no válida. Por favor, elige una opción del menú.")
+if __name__=="__main__":
+    try:
+        rospy.init_node('mushu_face')
+        nodeRate = 100
+        rate = rospy.Rate(nodeRate)
+        rospy.Subscriber("/mushuMode", Int16, emoji_callback)
+        # if emojiGato == 0:
+        #     emojiGato = random.randint(1,3)
+
+
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
+
 

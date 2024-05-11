@@ -9,14 +9,17 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Float32
 
 # Define callback functions for wheel velocities
-def wl_callback(data):
-    global wl
-    wl = data.data
+def posY_callback(data):
+    global posY
+    posY = data.pose.position.x
 
-def wr_callback(data):
-    global wr
-    wr = data.data
+def posX_callback(data):
+    global posX
+    posX = data.pose.position.x
 
+def posZ_callback(data):
+    global posZ
+    posZ = data.pose.orientation.w
 # Set up ROS node and publishers/subscribers
 
 if __name__=="__main__":
@@ -27,7 +30,7 @@ if __name__=="__main__":
         rate = rospy.Rate(nodeRate)
 
         twist = Twist()
-        vmax = .2
+        vmax = .05
 
         # Define robot parameters
         wheel_radius = 0.05  # radius of wheels (m)
@@ -38,73 +41,123 @@ if __name__=="__main__":
         w_max = np.pi / 2  # maximum angular velocity (rad/s)
         
         # Read positions from file
-        numPath = 1
-        while numPath < 8:
-            with open("paths/path1Try"+ str(numPath)+ ".txt", "r") as file:
-                positions = np.loadtxt(file)
+        numPath = rospy.get_param('/ruta/numMesa')
 
-            num_positions = positions.shape[0]
+        ruta_archivo = "/home/karma/gazebo/src/pathRestaurante/paths/path" + str(numPath) + "Try1.txt"
 
+        datos = np.loadtxt(ruta_archivo, skiprows=1)
+
+        posiciones_x = .01 * datos[:, 0]
+        posiciones_y = .01 * datos[:, 1]
+
+        diferenciaX = posiciones_x[0]
+        diferenciaY = posiciones_y[0]
+
+        for i in range(len(posiciones_x)):
+            posiciones_x[i] -= diferenciaX
+            posiciones_y[i] -= diferenciaY
+
+        posiciones_x_rev = np.flip(posiciones_x)
+        posiciones_y_rev = np.flip(posiciones_y)
+
+        #print("Posiciones de x:", posiciones_x)
+        #print("Posiciones de y:", posiciones_y)
+
+        #print("Posiciones de x:", posiciones_x_rev)
+        #print("Posiciones de y:", posiciones_y_rev)
+
+        num_positions = len(posiciones_x)
+
+        #pos_x = positions[]
+        #print(positions[0])
+        #rospy.sleep(1000)
+        x = posiciones_x[0]  # x-position (m)
+        y = posiciones_y[0] # y-position (m)
+
+
+        kpr = 2.4
+        kpt = 4.5
+
+        error_dis_ant = 0.0
+        error_ori_ant = 0.0
+
+
+        posY = 0.0
+        posX = 0.0
+        posZ = 0.0
+
+        # Simulate robot motion
+        for k in range (2):
             pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
 
-            sub_wl = rospy.Subscriber('/wl', Float32, wl_callback)
-            sub_wr = rospy.Subscriber('/wr', Float32, wr_callback)
-            
-            x = 0.0  # x-position (m)
-            y = 0.0  # y-position (m)
-            theta = 0  # orientation (rad)
+            orientacion = rospy.Subscriber('/slam_out_pose', Float32, posZ_callback)
+            pos_act_x = rospy.Subscriber('/slam_out_pose', Float32, posX_callback)
+            pos_act_y = rospy.Subscriber('/slam_out_pose', Float32, posY_callback)
 
-            kpr = 1.4
-            kpt = 4.5
-
-            wr = 0.0
-            wl = 0.0
-
-            # Simulate robot motion
-            i = 1
+            i = 0
+            reverse = False
+            if k == 1:
+                reverse = True
             while i < num_positions:
+                if not reverse:
+                    x_des = posiciones_x[i]
+                    y_des = posiciones_y[i]
+                else:       
+                    x_des = posiciones_x_rev[i]
+                    y_des = posiciones_y_rev[i] 
+                
 
-                xd = positions[i,0]
-                yd = positions[i,1]
+                error_dis = math.sqrt((x_des-posX)^2 + (y_des-posY)^2)
+                error_ori = math.atan2(y_des-posY, x_des-posY) - posZ
+                
+                if error_ori > math.pi:
+                    error_ori = error_ori - 2*math.pi
+                elif error_ori < -math.pi:
+                    error_ori = error_ori + 2*math.pi
 
-                thetad = math.atan2((yd-y), (xd-x))
-                error = math.sqrt((xd-x)**2 + (yd-y)**2)
+                
+                error_dis_der = error_dis - error_dis_ant
+                error_ori_der = error_ori - error_ori_ant
 
-                thetae = (theta - thetad)
-                if thetae > math.pi:
-                    thetae = thetae - 2*math.pi
-                elif thetae < -math.pi:
-                    thetae = thetae + 2*math.pi
+                u_vel = kpr*error_dis + kpt*error_dis_der
+                u_ori = kpr*error_ori + kpt*error_ori_der
+                
+                error_dis_ant = error_dis
+                error_ori_ant = error_ori
+                
+                #print('y actual = ', y, 'y deseada = ', yd)
+                print(numPath)
+                print('y deseada = ', y_des)
+                print('x deseada = ', x_des)
+                # print()
+                #print('x actual = ', x_act, 'x deseada = ', xd)
+                # print()
+                # print('error =', error)
+                # print()
 
-                wref = -kpr * thetae
-                vref = vmax*math.tanh(error*kpt/vmax)
-
-                vr = vref + (wheelbase*wref)/2
-                vl = vref - (wheelbase*wref)/2
+                vr = u_vel+u_ori
+                vl = u_vel-u_ori
                 
                 vref = (vr + vl)/2
+                wref = -kpr * error_ori
 
-                v_real = wheel_radius* (wr+wl)/2
-                w_real = wheel_radius* (wr-wl)/wheelbase
-
-                vx = v_real * math.cos(theta)
-                vy = v_real * math.sin(theta)
-
-                x = x + vx*dt
-                y = y + vy*dt
-                theta = theta + w_real * dt
-                
                 # Compute wheel velocities from desired linear and angular velocities
                 twist.linear.x = vref
                 twist.angular.z = wref
                 pub.publish(twist)
 
                 # Check if the robot has reached the desired position
-                if abs(error) < 0.1:
+                if abs(error_dis) < 0.01:
                     i += 1
                 t = t + dt
                 rate.sleep()
-            numPath += 1
-
+            print("Ruta terminada ",k)
+            twist.linear.x = 0
+            twist.angular.z = 0
+            pub.publish(twist)
+            rospy.sleep(10)
+        print("mesa ", numPath )
     except rospy.ROSInterruptException:
         pass
+
+

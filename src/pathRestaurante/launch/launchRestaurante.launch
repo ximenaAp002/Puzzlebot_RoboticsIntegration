@@ -1,0 +1,7 @@
+<launch>
+  <node pkg="rosbridge_server" type="rosbridge_websocket" name="rosbridge_server"/>
+  <node pkg="pathRestaurante" type="pathLidar.py" name="square_mover" output="screen"/>
+  <node pkg="pathRestaurante" type="obstacleDetector.py" name="lidar" output="screen">
+    <param name="puzzlebot_ip" value="192.168.1.1" />
+  </node>
+</launch>

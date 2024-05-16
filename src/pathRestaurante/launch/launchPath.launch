@@ -1,0 +1,12 @@
+<launch>
+  <rosparam command = "load" file = '$(find pathRestaurante)/config/params.yml'/>
+  <node pkg="rosbridge_server" type="rosbridge_websocket" name="rosbridge_server"/>
+  <node pkg="pathRestaurante" type="pathLidar.py" name="square_mover" output="screen"/>
+  <node pkg="pathRestaurante" type="obstacleDetector.py" name="obstacle_detector" output="screen"/>
+  <node pkg="pathRestaurante" type="quaternion.py" name="eulerConverter" output="screen"/>
+  <node pkg="pathRestaurante" type="spray.py" name="mushu_face" output="screen"/>
+  <node pkg="pathRestaurante" type="muchuControl.py" name="mushu_control" output="screen">
+
+    <param name="puzzlebot_ip" value="192.168.1.1" />
+  </node>
+</launch>

@@ -1,0 +1,4 @@
+<launch>
+  <node pkg="pathRestaurante" type="pathLidar.py" name="square_mover" output="screen">
+  </node>
+</launch>
